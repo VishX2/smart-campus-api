@@ -10,64 +10,44 @@ import uk.ac.westminster.smartcampus.storage.DataStore;
 import java.util.Collection;
 
 /**
- * RoomResource handles all HTTP operations related to Room entities.
+ * RoomResource handles all operations related to Room entities.
  * 
  * Base path: /api/v1/rooms
  * 
- * This class demonstrates RESTful principles:
- * - Resource-based URL design
- * - Proper HTTP methods (GET, POST)
- * - Appropriate status codes
+ * Demonstrates:
+ * - RESTful design
+ * - Proper HTTP methods
+ * - Business logic validation
  */
 @Path("/rooms")
-@Produces(MediaType.APPLICATION_JSON)   // All responses will be JSON
-@Consumes(MediaType.APPLICATION_JSON)   // Accept JSON input
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class RoomResource {
 
     /**
      * GET /api/v1/rooms
-     * 
-     * Retrieves all rooms in the system.
-     * 
-     * @return Collection of Room objects stored in memory
+     * Retrieve all rooms
      */
     @GET
     public Collection<Room> getAllRooms() {
-        // Return all values from the in-memory datastore
         return DataStore.rooms.values();
     }
 
     /**
      * POST /api/v1/rooms
-     * 
-     * Creates a new room.
-     * The client must provide a valid Room object in JSON format.
-     * 
-     * Example JSON:
-     * {
-     *   "id": "LIB-301",
-     *   "name": "Library Study Room",
-     *   "capacity": 50
-     * }
-     * 
-     * @param room The Room object received from the client
-     * @return HTTP 201 (Created) with the created room,
-     *         or HTTP 400 if input is invalid
+     * Create a new room
      */
     @POST
     public Response createRoom(Room room) {
 
-        // Validate that the room ID is provided
         if (room.getId() == null || room.getId().isEmpty()) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("Room ID is required")
                     .build();
         }
 
-        // Store the room in memory using its ID as the key
         DataStore.rooms.put(room.getId(), room);
 
-        // Return HTTP 201 Created with the created object
         return Response.status(Response.Status.CREATED)
                 .entity(room)
                 .build();
@@ -75,31 +55,52 @@ public class RoomResource {
 
     /**
      * GET /api/v1/rooms/{id}
-     * 
-     * Retrieves a specific room by its unique ID.
-     * 
-     * Example:
-     * GET /api/v1/rooms/LIB-301
-     * 
-     * @param id The room ID from the URL path
-     * @return HTTP 200 with room data if found,
-     *         or HTTP 404 if the room does not exist
+     * Retrieve a specific room
      */
     @GET
     @Path("/{id}")
     public Response getRoomById(@PathParam("id") String id) {
 
-        // Retrieve room from datastore
         Room room = DataStore.rooms.get(id);
 
-        // If room does not exist, return 404 Not Found
         if (room == null) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity("Room not found")
                     .build();
         }
 
-        // Return 200 OK with the room data
         return Response.ok(room).build();
+    }
+
+    /**
+     * DELETE /api/v1/rooms/{id}
+     * 
+     * Business Rule:
+     * A room cannot be deleted if it has sensors assigned.
+     */
+    @DELETE
+    @Path("/{id}")
+    public Response deleteRoom(@PathParam("id") String id) {
+
+        Room room = DataStore.rooms.get(id);
+
+        // Check if room exists
+        if (room == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("Room not found")
+                    .build();
+        }
+
+        // BUSINESS RULE: Cannot delete if sensors exist
+        if (room.getSensorIds() != null && !room.getSensorIds().isEmpty()) {
+            return Response.status(Response.Status.CONFLICT) // 409
+                    .entity("Cannot delete room: Sensors are still assigned to this room")
+                    .build();
+        }
+
+        // Remove room from datastore
+        DataStore.rooms.remove(id);
+
+        return Response.ok("Room deleted successfully").build();
     }
 }
