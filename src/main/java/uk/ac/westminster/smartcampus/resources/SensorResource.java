@@ -19,12 +19,10 @@ public class SensorResource {
     @GET
     public Collection<Sensor> getAllSensors(@QueryParam("type") String type) {
 
-        // If no filter is provided, return all sensors
         if (type == null || type.isEmpty()) {
             return DataStore.sensors.values();
         }
 
-        // Filter sensors by type (e.g., Temperature, CO2)
         return DataStore.sensors.values()
                 .stream()
                 .filter(sensor -> sensor.getType() != null &&
@@ -35,14 +33,12 @@ public class SensorResource {
     @POST
     public Response createSensor(Sensor sensor) {
 
-        // Basic validation for required ID
         if (sensor.getId() == null || sensor.getId().isEmpty()) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("Sensor ID is required")
                     .build();
         }
 
-        // Ensure the referenced room exists before creating sensor
         Room room = DataStore.rooms.get(sensor.getRoomId());
 
         if (room == null) {
@@ -51,12 +47,20 @@ public class SensorResource {
                     .build();
         }
 
-        // Store sensor and link it to the room
         DataStore.sensors.put(sensor.getId(), sensor);
         room.getSensorIds().add(sensor.getId());
 
         return Response.status(Response.Status.CREATED)
                 .entity(sensor)
                 .build();
+    }
+
+    /*
+     * Sub-resource locator for sensor readings.
+     * Delegates requests to SensorReadingResource.
+     */
+    @Path("/{id}/readings")
+    public SensorReadingResource getSensorReadings(@PathParam("id") String id) {
+        return new SensorReadingResource(id);
     }
 }
