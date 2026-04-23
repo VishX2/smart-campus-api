@@ -7,14 +7,11 @@ import jakarta.ws.rs.core.Response;
 import uk.ac.westminster.smartcampus.models.Sensor;
 import uk.ac.westminster.smartcampus.models.SensorReading;
 import uk.ac.westminster.smartcampus.storage.DataStore;
+import uk.ac.westminster.smartcampus.exceptions.SensorUnavailableException;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/*
- * Handles all operations related to sensor readings.
- * This is a sub-resource tied to a specific sensor.
- */
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class SensorReadingResource {
@@ -27,8 +24,6 @@ public class SensorReadingResource {
 
     @GET
     public List<SensorReading> getReadings() {
-
-        // Return readings list or empty list if none exist
         return DataStore.readings.getOrDefault(sensorId, new ArrayList<>());
     }
 
@@ -37,26 +32,21 @@ public class SensorReadingResource {
 
         Sensor sensor = DataStore.sensors.get(sensorId);
 
-        // Validate sensor existence
         if (sensor == null) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity("Sensor not found")
                     .build();
         }
 
-        // Business rule: sensor in MAINTENANCE cannot accept readings
+        // Throw exception instead of manual response
         if ("MAINTENANCE".equalsIgnoreCase(sensor.getStatus())) {
-            return Response.status(Response.Status.FORBIDDEN)
-                    .entity("Sensor is under maintenance")
-                    .build();
+            throw new SensorUnavailableException("Sensor is under maintenance");
         }
 
-        // Add reading to list
         DataStore.readings
                 .computeIfAbsent(sensorId, k -> new ArrayList<>())
                 .add(reading);
 
-        // Update sensor's current value (important consistency rule)
         sensor.setCurrentValue(reading.getValue());
 
         return Response.status(Response.Status.CREATED)
