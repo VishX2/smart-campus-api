@@ -7,6 +7,7 @@ import jakarta.ws.rs.core.Response;
 import uk.ac.westminster.smartcampus.models.Sensor;
 import uk.ac.westminster.smartcampus.models.Room;
 import uk.ac.westminster.smartcampus.storage.DataStore;
+import uk.ac.westminster.smartcampus.exceptions.LinkedResourceNotFoundException;
 
 import java.util.Collection;
 import java.util.stream.Collectors;
@@ -26,7 +27,7 @@ public class SensorResource {
         return DataStore.sensors.values()
                 .stream()
                 .filter(sensor -> sensor.getType() != null &&
-                                  sensor.getType().equalsIgnoreCase(type))
+                        sensor.getType().equalsIgnoreCase(type))
                 .collect(Collectors.toList());
     }
 
@@ -41,10 +42,9 @@ public class SensorResource {
 
         Room room = DataStore.rooms.get(sensor.getRoomId());
 
+        // Throw exception instead of manual response
         if (room == null) {
-            return Response.status(422)
-                    .entity("Room does not exist for the given roomId")
-                    .build();
+            throw new LinkedResourceNotFoundException("Room does not exist for the given roomId");
         }
 
         DataStore.sensors.put(sensor.getId(), sensor);
@@ -55,10 +55,6 @@ public class SensorResource {
                 .build();
     }
 
-    /*
-     * Sub-resource locator for sensor readings.
-     * Delegates requests to SensorReadingResource.
-     */
     @Path("/{id}/readings")
     public SensorReadingResource getSensorReadings(@PathParam("id") String id) {
         return new SensorReadingResource(id);
